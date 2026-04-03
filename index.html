@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>QR Code Generator</title>
+	<style>
+		:root {
+			--bg: linear-gradient(135deg, #f6efe4 0%, #dbe7f0 100%);
+			--panel: rgba(255, 252, 247, 0.88);
+			--text: #1e2430;
+			--muted: #5c6472;
+			--accent: #0d6e6e;
+			--accent-dark: #084d4d;
+			--border: rgba(30, 36, 48, 0.12);
+			--shadow: 0 24px 60px rgba(30, 36, 48, 0.16);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: grid;
+			place-items: center;
+			padding: 24px;
+			font-family: "Avenir Next", "Segoe UI", sans-serif;
+			color: var(--text);
+			background: var(--bg);
+		}
+
+		.card {
+			width: min(100%, 960px);
+			display: grid;
+			grid-template-columns: 1.05fr 0.95fr;
+			gap: 28px;
+			padding: 32px;
+			border: 1px solid var(--border);
+			border-radius: 28px;
+			background: var(--panel);
+			box-shadow: var(--shadow);
+			backdrop-filter: blur(12px);
+		}
+
+		.content {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+		}
+
+		.eyebrow {
+			margin: 0 0 10px;
+			font-size: 0.78rem;
+			font-weight: 700;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+			color: var(--accent);
+		}
+
+		h1 {
+			margin: 0;
+			font-size: clamp(2rem, 4vw, 3.6rem);
+			line-height: 0.96;
+			letter-spacing: -0.04em;
+		}
+
+		.intro {
+			max-width: 40ch;
+			margin: 18px 0 0;
+			font-size: 1.02rem;
+			line-height: 1.6;
+			color: var(--muted);
+		}
+
+		form {
+			margin-top: 28px;
+			display: grid;
+			gap: 14px;
+		}
+
+		label {
+			font-size: 0.95rem;
+			font-weight: 600;
+		}
+
+		.input-row {
+			display: flex;
+			gap: 12px;
+			align-items: stretch;
+		}
+
+		input {
+			width: 100%;
+			padding: 16px 18px;
+			border: 1px solid rgba(30, 36, 48, 0.14);
+			border-radius: 16px;
+			font: inherit;
+			color: var(--text);
+			background: rgba(255, 255, 255, 0.84);
+		}
+
+		input:focus {
+			outline: 2px solid rgba(13, 110, 110, 0.2);
+			border-color: rgba(13, 110, 110, 0.42);
+		}
+
+		button {
+			border: 0;
+			border-radius: 16px;
+			padding: 0 20px;
+			font: inherit;
+			font-weight: 700;
+			cursor: pointer;
+			transition: transform 160ms ease, background-color 160ms ease, opacity 160ms ease;
+		}
+
+		button:hover {
+			transform: translateY(-1px);
+		}
+
+		.primary {
+			min-width: 142px;
+			background: var(--accent);
+			color: #f5fbfa;
+		}
+
+		.primary:hover {
+			background: var(--accent-dark);
+		}
+
+		.secondary {
+			padding: 14px 18px;
+			background: #1e2430;
+			color: #fff;
+		}
+
+		.secondary[hidden] {
+			display: none;
+		}
+
+		.status {
+			min-height: 1.4em;
+			margin: 4px 0 0;
+			font-size: 0.95rem;
+			color: var(--muted);
+		}
+
+		.status.error {
+			color: #af2337;
+		}
+
+		.panel {
+			display: grid;
+			gap: 18px;
+			justify-items: center;
+			align-content: center;
+			padding: 28px;
+			border-radius: 24px;
+			background: rgba(255, 255, 255, 0.62);
+			border: 1px solid rgba(30, 36, 48, 0.1);
+		}
+
+		.qr-shell {
+			width: min(100%, 360px);
+			aspect-ratio: 1;
+			display: grid;
+			place-items: center;
+			padding: 18px;
+			border-radius: 24px;
+			background:
+				radial-gradient(circle at top left, rgba(13, 110, 110, 0.12), transparent 42%),
+				#fff;
+			box-shadow: inset 0 0 0 1px rgba(30, 36, 48, 0.08);
+		}
+
+		#qr-preview {
+			max-width: 100%;
+			height: auto;
+			display: none;
+			border-radius: 12px;
+		}
+
+		.placeholder {
+			max-width: 22ch;
+			margin: 0;
+			text-align: center;
+			line-height: 1.5;
+			color: var(--muted);
+		}
+
+		.meta {
+			margin: 0;
+			font-size: 0.9rem;
+			color: var(--muted);
+			text-align: center;
+		}
+
+		#download-canvas {
+			display: none;
+		}
+
+		@media (max-width: 820px) {
+			.card {
+				grid-template-columns: 1fr;
+				padding: 24px;
+			}
+
+			.input-row {
+				flex-direction: column;
+			}
+
+			.primary {
+				min-height: 54px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="card">
+		<section class="content">
+			<p class="eyebrow">Static QR Tool</p>
+			<h1>Generate a QR code from any link.</h1>
+			<p class="intro">
+				Paste a URL, generate the code, then download a crisp PNG export sized at 2048 by 2048 pixels.
+			</p>
+
+			<form id="qr-form">
+				<label for="link-input">Website link</label>
+				<div class="input-row">
+					<input
+						id="link-input"
+						name="link"
+						type="text"
+						inputmode="url"
+						placeholder="https://example.com"
+						autocomplete="off"
+						required
+					>
+					<button class="primary" type="submit">Generate</button>
+				</div>
+				<p id="status" class="status" aria-live="polite"></p>
+			</form>
+		</section>
+
+		<section class="panel">
+			<div class="qr-shell">
+				<img id="qr-preview" alt="Generated QR code preview">
+				<p id="placeholder" class="placeholder">Your QR code preview will appear here after you generate it.</p>
+			</div>
+			<button id="download-button" class="secondary" type="button" hidden>Download</button>
+			<p class="meta">Download output: PNG, 2048x2048</p>
+		</section>
+	</main>
+
+	<script>
+		const form = document.getElementById("qr-form");
+		const linkInput = document.getElementById("link-input");
+		const status = document.getElementById("status");
+		const previewImage = document.getElementById("qr-preview");
+		const downloadButton = document.getElementById("download-button");
+		const placeholder = document.getElementById("placeholder");
+		let downloadUrl = "";
+
+		function normalizeUrl(value) {
+			const trimmedValue = value.trim();
+			if (!trimmedValue) {
+				throw new Error("Enter a link to generate a QR code.");
+			}
+
+			const withProtocol = /^https?:\/\//i.test(trimmedValue)
+				? trimmedValue
+				: `https://${trimmedValue}`;
+
+			return new URL(withProtocol).toString();
+		}
+
+		function buildQrUrl(url, size) {
+			const query = new URLSearchParams({
+				text: url,
+				size: String(size),
+				margin: "2",
+				ecLevel: "H",
+				format: "png",
+				dark: "111111",
+				light: "ffffff"
+			});
+
+			return `https://quickchart.io/qr?${query.toString()}`;
+		}
+
+		function loadPreviewImage(url) {
+			return new Promise((resolve, reject) => {
+				previewImage.onload = () => {
+					previewImage.onload = null;
+					previewImage.onerror = null;
+					resolve();
+				};
+
+				previewImage.onerror = () => {
+					previewImage.onload = null;
+					previewImage.onerror = null;
+					reject(new Error("Unable to load the QR code image."));
+				};
+
+				previewImage.src = url;
+			});
+		}
+
+		form.addEventListener("submit", async (event) => {
+			event.preventDefault();
+			status.classList.remove("error");
+			status.textContent = "Generating QR code...";
+			downloadButton.hidden = true;
+
+			try {
+				const normalizedUrl = normalizeUrl(linkInput.value);
+				const previewUrl = buildQrUrl(normalizedUrl, 320);
+				downloadUrl = buildQrUrl(normalizedUrl, 2048);
+				await loadPreviewImage(previewUrl);
+
+				previewImage.style.display = "block";
+				placeholder.hidden = true;
+				status.textContent = "QR code ready.";
+				downloadButton.hidden = false;
+			} catch (error) {
+				previewImage.removeAttribute("src");
+				previewImage.style.display = "none";
+				placeholder.hidden = false;
+				downloadUrl = "";
+				status.textContent = error.message || "Unable to generate the QR code.";
+				status.classList.add("error");
+			}
+		});
+
+		downloadButton.addEventListener("click", async () => {
+			if (!downloadUrl) {
+				return;
+			}
+
+			status.classList.remove("error");
+			status.textContent = "Preparing download...";
+
+			try {
+				const response = await fetch(downloadUrl);
+				if (!response.ok) {
+					throw new Error("Unable to download the QR code PNG.");
+				}
+
+				const imageBlob = await response.blob();
+				const objectUrl = URL.createObjectURL(imageBlob);
+				const downloadLink = document.createElement("a");
+				downloadLink.href = objectUrl;
+				downloadLink.download = "qr-code-2048.png";
+				downloadLink.click();
+				setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+				status.textContent = "QR code ready.";
+			} catch (error) {
+				status.textContent = error.message || "Unable to download the QR code.";
+				status.classList.add("error");
+			}
+		});
+	</script>
+</body>
+</html>
